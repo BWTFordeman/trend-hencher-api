@@ -39,13 +39,13 @@ jobs:
             service_account_key: ${{ secrets.GCP_CREDENTIALS }}
         
         - name: Configure Docker
-          run: gcloud auth configure-docker
+          run: gcloud auth configure-docker europe-west2-docker.pkg.dev
 
         - name: Build Docker image
-          run: docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-api .
+          run: docker build -t europe-west-2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api .
 
         - name: Push Docker image
-          run: docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-api
+          run: docker push europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api
     
         - name: Deploy to Cloud Run
           run: |
