@@ -4,6 +4,12 @@ on:
     push:
         branches:
             - main
+    workflow_dispatch:
+        inputs:
+            deploy-api-to-cloud:
+                description: Deploy api to cloud
+                type: boolean
+                required: false
 
 jobs:
     build:
