@@ -1,0 +1,41 @@
+name: Deploy to Google Cloud
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+
+        - name: Set up Go
+          uses: actions/setup-go@v2
+          with:
+            go-version: 1.18
+    
+        - name: Build
+          run: go build -v ./...
+    
+        - name: Authenticate to Google Cloud
+          uses: google-github-actions/auth@v1
+          with:
+            credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+    
+        - name: Set up Cloud SDK
+          uses: google-github-actions/setup-gcloud@v1
+          with:
+            project_id: ${{ secrets.GCP_PROJECT_ID }}
+            service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+    
+        - name: Deploy to Cloud Run
+          run: |
+            gcloud run deploy trend-hencher-api \
+              --platform managed \
+              --region us-central1 \
+              --allow-unauthenticated \
+              --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-api
