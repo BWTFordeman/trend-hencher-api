@@ -42,10 +42,10 @@ jobs:
           run: gcloud auth configure-docker europe-west2-docker.pkg.dev
 
         - name: Build Docker image
-          run: docker build -t europe-west-2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api .
+          run: docker build -t europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api .
 
         - name: Push Docker image
-          run: docker push europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api
+          run: docker push europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api
     
         - name: Deploy to Cloud Run
           run: |
@@ -53,4 +53,4 @@ jobs:
               --platform managed \
               --region europe-west2 \
               --allow-unauthenticated \
-              --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-api
+              --image europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api
