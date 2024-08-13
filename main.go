@@ -47,6 +47,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("GOOGLE_CLOUD_PROJECT environment variable must be set")
 	}
 	log.Println("Received request to save trend:", trend)
+	log.Println("Received projectID:", projectID)
 
 	// Set up Datastore client
 	ctx := context.Background()
