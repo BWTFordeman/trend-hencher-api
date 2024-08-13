@@ -46,6 +46,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	if projectID == "" {
 		log.Fatal("GOOGLE_CLOUD_PROJECT environment variable must be set")
 	}
+	log.Println("Received request to save trend:", trend)
 
 	// Set up Datastore client
 	ctx := context.Background()
@@ -58,9 +59,12 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	// Generate a new key for the entity
 	key := datastore.IncompleteKey("Trend", nil)
 
+	log.Println("generated key: ", key)
+
 	// Save the entity
 	_, err = client.Put(ctx, key, &trend)
 	if err != nil {
+		log.Printf("Failed to save trend: %v", err)
 		http.Error(w, "Failed to save trend", http.StatusInternalServerError)
 		return
 	}
