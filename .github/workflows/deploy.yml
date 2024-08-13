@@ -52,4 +52,5 @@ jobs:
             gcloud run deploy trend-hencher-api \
               --platform managed \
               --region europe-west2 \
-              --image europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api
+              --image europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api \
+              --update-env-vars GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }}
