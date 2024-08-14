@@ -58,6 +58,7 @@ func getTrendsHandler(w http.ResponseWriter, r *http.Request) {
 	// Prepare a slice of TrendResponse to return, including the numeric ID
 	var response []TrendResponse
 	for i, key := range keys {
+
 		response = append(response, TrendResponse{
 			ID:      key.ID,
 			Message: trends[i].Message,
@@ -65,7 +66,7 @@ func getTrendsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert the trends slice to JSON
-	jsonResponse, err := json.Marshal(trends)
+	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		log.Printf("Failed to marshal trends: %v", err)
 		http.Error(w, "Failed to encode trends as JSON", http.StatusInternalServerError)
