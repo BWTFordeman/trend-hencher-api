@@ -17,13 +17,56 @@ type Trend struct {
 }
 
 func main() {
-	http.HandleFunc("/", helloHandler)
+	http.HandleFunc("/", helpHandler)
+	http.HandleFunc("/trends", getTrendsHandler)
 	http.HandleFunc("/save", saveHandler)
 	http.ListenAndServe(":8080", nil)
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, trend setters!")
+func helpHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Oops, nothing here. Want some help? Too bad! You won't get any!")
+}
+
+func getTrendsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := context.Background()
+	client, err := datastore.NewClient(ctx, os.Getenv("GOOGLE_CLOUD_PROJECT"))
+	if err != nil {
+		log.Fatalf("Failed to create Datastore client: %v", err)
+	}
+	defer client.Close()
+
+	// Create a query to retrieve all Trend entities
+	query := datastore.NewQuery("Trend")
+
+	var trends []Trend
+	keys, err := client.GetAll(ctx, query, &trends)
+	if err != nil {
+		log.Printf("Failed to retrieve trends: %v", err)
+		http.Error(w, "Failed to retrieve trends", http.StatusInternalServerError)
+		return
+	}
+
+	// Populate the Key field for each trend
+	for i, key := range keys {
+		trends[i].Key = key
+	}
+
+	// Convert the trends slice to JSON
+	jsonResponse, err := json.Marshal(trends)
+	if err != nil {
+		log.Printf("Failed to marshal trends: %v", err)
+		http.Error(w, "Failed to encode trends as JSON", http.StatusInternalServerError)
+		return
+	}
+
+	// Send the JSON response
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponse)
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
