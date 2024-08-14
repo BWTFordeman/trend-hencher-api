@@ -12,8 +12,12 @@ import (
 )
 
 type Trend struct {
-	Key     *datastore.Key `datastore:"__key__,omitempty"`
-	Message string         `datastore:"message"`
+	Message string `datastore:"message"`
+}
+
+type TrendResponse struct {
+	ID      int64  `json:"id"`
+	Message string `json:"message"`
 }
 
 func main() {
@@ -51,9 +55,13 @@ func getTrendsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Populate the Key field for each trend
+	// Prepare a slice of TrendResponse to return, including the numeric ID
+	var response []TrendResponse
 	for i, key := range keys {
-		trends[i].Key = key
+		response = append(response, TrendResponse{
+			ID:      key.ID,
+			Message: trends[i].Message,
+		})
 	}
 
 	// Convert the trends slice to JSON
