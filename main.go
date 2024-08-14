@@ -12,7 +12,7 @@ import (
 )
 
 type Trend struct {
-	Key     *datastore.Key `datastore:"__key__"` // Datastore field fo key
+	Key     *datastore.Key `datastore:"__key__,omitempty"`
 	Message string         `datastore:"message"`
 }
 
@@ -62,8 +62,6 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 func saveTrend(ctx context.Context, client *datastore.Client, trend *Trend) error {
 	// Generate a new key for the entity
 	key := datastore.IncompleteKey("Trend", nil)
-
-	log.Printf("saved values %v, %v", ctx, key)
 
 	// Save the entity
 	completeKey, err := client.Put(ctx, key, trend)
