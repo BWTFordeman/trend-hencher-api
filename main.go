@@ -115,13 +115,10 @@ func saveTrend(ctx context.Context, client *datastore.Client, trend *Trend) erro
 	key := datastore.IncompleteKey("Trend", nil)
 
 	// Save the entity
-	completeKey, err := client.Put(ctx, key, trend)
+	_, err := client.Put(ctx, key, trend)
 	if err != nil {
 		return err
 	}
-	log.Printf("complete key %v", completeKey)
 
-	// Update the Trend struct with the generated complete key
-	trend.Key = completeKey
 	return nil
 }
