@@ -12,11 +12,9 @@ import (
 )
 
 type Trend struct {
-	ID      int64  `datastore:"id"`
-	Message string `datastore:"message"`
+	Key     *datastore.Key `datastore:"__key__"` // Datastore field fo key
+	Message string         `datastore:"message"`
 }
-
-var projectID = "project-id"
 
 func main() {
 	http.HandleFunc("/", helloHandler)
@@ -42,29 +40,15 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	if projectID == "" {
-		log.Fatal("GOOGLE_CLOUD_PROJECT environment variable must be set")
-	}
-	log.Println("Received request to save trend:", trend)
-	log.Println("Received projectID:", projectID)
-
 	// Set up Datastore client
 	ctx := context.Background()
-	client, err := datastore.NewClient(ctx, projectID)
+	client, err := datastore.NewClient(ctx, os.Getenv("GOOGLE_CLOUD_PROJECT"))
 	if err != nil {
 		log.Fatalf("Failed to create Datastore client: %v", err)
 	}
 	defer client.Close()
 
-	// Generate a new key for the entity
-	key := datastore.IncompleteKey("Trend", nil)
-
-	log.Println("generated key: ", key)
-
-	// Save the entity
-	_, err = client.Put(ctx, key, &trend)
-	if err != nil {
+	if err := saveTrend(ctx, client, &trend); err != nil {
 		log.Printf("Failed to save trend: %v", err)
 		http.Error(w, "Failed to save trend", http.StatusInternalServerError)
 		return
@@ -73,4 +57,22 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	// Response
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "Trend saved successfully")
+}
+
+func saveTrend(ctx context.Context, client *datastore.Client, trend *Trend) error {
+	// Generate a new key for the entity
+	key := datastore.IncompleteKey("Trend", nil)
+
+	log.Printf("saved values %v, %v", ctx, key)
+
+	// Save the entity
+	completeKey, err := client.Put(ctx, key, trend)
+	if err != nil {
+		return err
+	}
+	log.Printf("complete key %v", completeKey)
+
+	// Update the Trend struct with the generated complete key
+	trend.Key = completeKey
+	return nil
 }
