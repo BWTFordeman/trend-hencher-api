@@ -81,6 +81,7 @@ func (r *DatastoreRepository) GetTransactions(trendID int64) ([]models.Transacti
 	for i, key := range keys {
 		response = append(response, models.TransactionResponse{
 			ID:          key.ID,
+			TrendID:     trendID,
 			DateBought:  transactions[i].DateBought,
 			DateSold:    transactions[i].DateSold,
 			PriceBought: transactions[i].PriceBought,
