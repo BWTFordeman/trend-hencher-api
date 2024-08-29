@@ -19,7 +19,7 @@ func (s *TrendService) GetTrendByID(id int64) (*models.Trend, error) {
 	return s.repo.GetTrendByID(id)
 }
 
-func (s *TrendService) GetAllTrends() ([]*models.Trend, error) {
+func (s *TrendService) GetAllTrends() ([]models.TrendResponse, error) {
 	return s.repo.GetAllTrends()
 }
 

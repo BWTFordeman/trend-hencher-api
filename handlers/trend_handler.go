@@ -47,13 +47,13 @@ func (h *TrendHandler) GetTrend(w http.ResponseWriter, r *http.Request) {
 
 func (h *TrendHandler) GetAllTrends(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		utils.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
 	}
 
 	trends, err := h.trendService.GetAllTrends()
 	if err != nil {
-		http.Error(w, "Failed to retrieve trends", http.StatusInternalServerError)
+		utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve trends"})
 		return
 	}
 

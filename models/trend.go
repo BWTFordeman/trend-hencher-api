@@ -16,3 +16,11 @@ type Trend struct {
 	Date        time.Time   `datastore:"date"`
 	TrendValues TrendValues `datastore:"trend_values"`
 }
+
+type TrendResponse struct {
+	ID          int64       `json:"id"`
+	Stock       string      `json:"stock"`
+	TrendScore  float64     `json:"trend_score"`
+	Date        time.Time   `json:"date"`
+	TrendValues TrendValues `json:"trend_values"`
+}

@@ -44,13 +44,24 @@ func (r *DatastoreRepository) GetTrendByID(id int64) (*models.Trend, error) {
 }
 
 // GetAllTrends retrieves all Trend entities
-func (r *DatastoreRepository) GetAllTrends() ([]*models.Trend, error) {
-	var trends []*models.Trend
+func (r *DatastoreRepository) GetAllTrends() ([]models.TrendResponse, error) {
+	var trends []models.Trend
 	query := datastore.NewQuery("Trend")
-	_, err := r.client.GetAll(r.ctx, query, &trends)
+	keys, err := r.client.GetAll(r.ctx, query, &trends)
 	if err != nil {
 		log.Printf("Failed to retrieve trends: %v", err)
 		return nil, err
 	}
-	return trends, nil
+
+	var response []models.TrendResponse
+	for i, key := range keys {
+		response = append(response, models.TrendResponse{
+			ID:          key.ID,
+			Stock:       trends[i].Stock,
+			TrendScore:  trends[i].TrendScore,
+			Date:        trends[i].Date,
+			TrendValues: trends[i].TrendValues,
+		})
+	}
+	return response, nil
 }
