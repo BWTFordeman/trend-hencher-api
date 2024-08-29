@@ -70,7 +70,7 @@ func (r *DatastoreRepository) GetAllTrends() ([]models.TrendResponse, error) {
 func (r *DatastoreRepository) GetTransactions(trendID int64) ([]models.TransactionResponse, error) {
 	key := datastore.IDKey("Trend", trendID, nil)
 	var transactions []models.Transaction
-	query := datastore.NewQuery("Transaction").FilterField("TrendID", "=", key)
+	query := datastore.NewQuery("Transaction").FilterField("trend_id", "=", key)
 	keys, err := r.client.GetAll(r.ctx, query, &transactions)
 	if err != nil {
 		log.Printf("Failed to retrieve transactions: %v", err)
