@@ -83,3 +83,30 @@ func (h *TrendHandler) SaveTrend(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusCreated, map[string]string{"message": "Trend saved successfully"})
 }
+
+func (h *TrendHandler) GetTransactions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	queryID := r.URL.Query().Get("id")
+	if queryID == "" {
+		http.Error(w, "Missing trend ID", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(queryID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid trend ID", http.StatusBadRequest)
+		return
+	}
+
+	transactions, err := h.trendService.GetTransactions(id)
+	if err != nil {
+		http.Error(w, "Transactions not found", http.StatusNotFound)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, transactions)
+}

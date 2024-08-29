@@ -26,6 +26,7 @@ func main() {
 	http.HandleFunc("/trend", trendHandler.GetTrend)
 	http.HandleFunc("/trends", trendHandler.GetAllTrends)
 	http.HandleFunc("/saveTrend", trendHandler.SaveTrend)
+	http.HandleFunc("/transactions", trendHandler.GetTransactions)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

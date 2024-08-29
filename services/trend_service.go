@@ -26,3 +26,7 @@ func (s *TrendService) GetAllTrends() ([]models.TrendResponse, error) {
 func (s *TrendService) SaveTrend(trend *models.Trend) (*datastore.Key, error) {
 	return s.repo.SaveTrend(trend)
 }
+
+func (s *TrendService) GetTransactions(id int64) ([]models.TransactionResponse, error) {
+	return s.repo.GetTransactions(id)
+}

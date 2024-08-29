@@ -65,3 +65,28 @@ func (r *DatastoreRepository) GetAllTrends() ([]models.TrendResponse, error) {
 	}
 	return response, nil
 }
+
+// GetTransactions retrieves transactions related to a Trend
+func (r *DatastoreRepository) GetTransactions(trendID int64) ([]models.TransactionResponse, error) {
+	key := datastore.IDKey("Trend", trendID, nil)
+	var transactions []models.Transaction
+	query := datastore.NewQuery("Transaction").FilterField("TrendID", "=", key)
+	keys, err := r.client.GetAll(r.ctx, query, &transactions)
+	if err != nil {
+		log.Printf("Failed to retrieve transactions: %v", err)
+		return nil, err
+	}
+
+	var response []models.TransactionResponse
+	for i, key := range keys {
+		response = append(response, models.TransactionResponse{
+			ID:          key.ID,
+			DateBought:  transactions[i].DateBought,
+			DateSold:    transactions[i].DateSold,
+			PriceBought: transactions[i].PriceBought,
+			PriceSold:   transactions[i].PriceSold,
+			Volume:      transactions[i].Volume,
+		})
+	}
+	return response, nil
+}
