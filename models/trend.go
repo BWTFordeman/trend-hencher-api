@@ -4,8 +4,6 @@ import (
 	"time"
 )
 
-type IndicatorType int64
-
 type TrendValues struct {
 	IndicatorName  string        `json:"indicator_name"`
 	IndicatorType  IndicatorType `json:"indicator_type"`
