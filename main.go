@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"trend-hencher-api/handlers"
 	"trend-hencher-api/repository"
 	"trend-hencher-api/services"
@@ -13,7 +14,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	client, err := datastore.NewClient(ctx, "trend-hencher-api")
+	client, err := datastore.NewClient(ctx, os.Getenv("GOOGLE_CLOUD_PROJECT"))
 	if err != nil {
 		log.Fatalf("Failed to create Datastore client: %v", err)
 	}
