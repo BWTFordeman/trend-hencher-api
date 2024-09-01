@@ -110,3 +110,31 @@ func (h *TrendHandler) GetTransactions(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, transactions)
 }
+
+func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	stockSymbol := r.URL.Query().Get("symbol")
+	if stockSymbol == "" {
+		http.Error(w, "Missing stock symbol", http.StatusBadRequest)
+		return
+	}
+
+	// TODO Get data:
+
+	// TODO Setup trends:
+
+	// TODO Run trends to get scores:
+
+	// TODO save trends with score:
+	trendsCreated, err := h.trendService.CreateTrends()
+	if err != nil {
+		http.Error(w, "No trends created", http.StatusNotFound)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, trendsCreated)
+}
