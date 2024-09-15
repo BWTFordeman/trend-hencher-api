@@ -54,4 +54,6 @@ jobs:
               --region europe-west2 \
               --image europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/trend-hencher-repo/trend-hencher-api \
               --update-env-vars GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }} \
+              --update-env-vars EODHD_API_TOKEN=${{ secrets.GCP_EODHD_API_TOKEN }} \
+              --update-env-vars ENVIRONMENT=production \
               --service-account trend-hencher-service@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com

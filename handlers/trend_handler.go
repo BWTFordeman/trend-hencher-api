@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 	"trend-hencher-api/models"
@@ -12,6 +15,17 @@ import (
 
 type TrendHandler struct {
 	trendService *services.TrendService
+}
+
+type IntradayData struct {
+	Timestamp int64   `json:"timestamp"`
+	GmtOffset int     `json:"gmtoffset"`
+	Datetime  string  `json:"datetime"`
+	Open      float64 `json:"open"`
+	High      float64 `json:"high"`
+	Low       float64 `json:"low"`
+	Close     float64 `json:"close"`
+	Volume    int     `json:"volume"`
 }
 
 func NewTrendHandler(trendService *services.TrendService) *TrendHandler {
@@ -123,18 +137,87 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO Get data:
+	// Fetch data from API:
+	log.Println("Checking market...")
+	intradayData, err := fetchIntradayData(stockSymbol)
+	if err != nil {
+		http.Error(w, "Failed to retrieve or parse data", http.StatusInternalServerError)
+		return
+	}
+	log.Println("data: ", intradayData)
 
 	// TODO Setup trends:
 
 	// TODO Run trends to get scores:
 
 	// TODO save trends with score:
-	trendsCreated, err := h.trendService.CreateTrends()
+	/* trendsCreated, err := h.trendService.CreateTrends()
 	if err != nil {
 		http.Error(w, "No trends created", http.StatusNotFound)
 		return
+	} */
+
+	utils.WriteJSON(w, http.StatusOK, nil)
+}
+
+func fetchIntradayData(stockSymbol string) ([]IntradayData, error) {
+	environment := os.Getenv("ENVIRONMENT")
+
+	if environment == "local" {
+		fmt.Println("Fetching local test data")
+		return fetchFromLocalFile()
 	}
 
-	utils.WriteJSON(w, http.StatusOK, trendsCreated)
+	return fetchFromAPI(stockSymbol)
+}
+
+func fetchFromLocalFile() ([]IntradayData, error) {
+	filePath := "test-data.json"
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read local file: %v", err)
+	}
+
+	var intradayData []IntradayData
+	err = json.Unmarshal(data, &intradayData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse local JSON file: %v", err)
+	}
+
+	return intradayData, nil
+}
+
+func fetchFromAPI(stockSymbol string) ([]IntradayData, error) {
+	apiToken := os.Getenv("EODHD_API_TOKEN")
+	if apiToken == "" {
+		return nil, fmt.Errorf("API token is not set")
+	}
+
+	url := fmt.Sprintf("https://eodhd.com/api/intraday/%s.US?interval=1m&api_token=%s&fmt=json", stockSymbol, apiToken)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("User-Agent", "Go-http-client/1.1")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch intraday data: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch data, status code: %d", resp.StatusCode)
+	}
+
+	var intradayData []IntradayData
+	err = json.NewDecoder(resp.Body).Decode(&intradayData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	return intradayData, nil
 }
