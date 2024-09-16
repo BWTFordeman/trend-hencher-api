@@ -147,15 +147,20 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 	log.Println("data: ", intradayData)
 
 	// TODO Setup trends:
+	_, err = setupTrends(intradayData)
+	if err != nil {
+		http.Error(w, "Failed setting up trend values", http.StatusInternalServerError)
+		return
+	}
 
 	// TODO Run trends to get scores:
 
 	// TODO save trends with score:
-	/* trendsCreated, err := h.trendService.CreateTrends()
-	if err != nil {
-		http.Error(w, "No trends created", http.StatusNotFound)
-		return
-	} */
+	/* 	trendsCreated, err := h.trendService.CreateTrends()
+	   	if err != nil {
+	   		http.Error(w, "No trends created", http.StatusInternalServerError)
+	   		return
+	   	} */
 
 	utils.WriteJSON(w, http.StatusOK, nil)
 }
