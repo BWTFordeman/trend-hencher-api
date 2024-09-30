@@ -56,11 +56,12 @@ func (r *DatastoreRepository) GetAllTrends() ([]models.TrendResponse, error) {
 	var response []models.TrendResponse
 	for i, key := range keys {
 		response = append(response, models.TrendResponse{
-			ID:          key.ID,
-			Stock:       trends[i].Stock,
-			TrendScore:  trends[i].TrendScore,
-			Date:        trends[i].Date,
-			TrendValues: trends[i].TrendValues,
+			ID:                    key.ID,
+			Stock:                 trends[i].Stock,
+			TrendScore:            trends[i].TrendScore,
+			Date:                  trends[i].Date,
+			IndicatorBuyScenario:  trends[i].IndicatorBuyScenario,
+			IndicatorSellScenario: trends[i].IndicatorSellScenario,
 		})
 	}
 	return response, nil
