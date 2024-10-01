@@ -12,11 +12,13 @@ import (
 	"trend-hencher-api/services"
 	"trend-hencher-api/utils"
 
+	"github.com/google/uuid"
 	"github.com/markcheno/go-talib"
 )
 
 type TrendHandler struct {
-	trendService *services.TrendService
+	trendService         *services.TrendService
+	bigQueryTrendService *services.BigQueryTrendService
 }
 
 type IntradayData struct {
@@ -159,6 +161,7 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 
 func createTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayData, symbol string) (string, error) {
 	err := createSingleTrends(h, w, data, symbol)
+	// TODO add single trends for other indicators than SMA...
 
 	// createDoubleTrends()
 	// createCrossOverDoubleTrends()
@@ -176,6 +179,7 @@ func createTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayData, s
 
 func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayData, symbol string) error {
 
+	trendID := uuid.New().String()
 	indicatorBuyScenario := models.BuyScenario{
 		Conditions: []models.BuyCondition{
 			{
@@ -191,34 +195,41 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 		ProfitThreshold: 1.07,
 		LossThreshold:   0.96,
 	}
-	trendScore, _, err := scoreTrend(data, indicatorBuyScenario, indicatorSellScenario)
+	trendScore, transactions, err := scoreTrend(data, indicatorBuyScenario, indicatorSellScenario, trendID)
 	if err != nil {
 		log.Println("scoring error", trendScore)
 		return err
 	}
 	trend := models.Trend{
+		TrendID:               trendID,
 		Stock:                 symbol,
 		TrendScore:            trendScore,
 		Date:                  time.Now(),
 		IndicatorBuyScenario:  indicatorBuyScenario,
 		IndicatorSellScenario: indicatorSellScenario,
 	}
-	log.Println("Trend: ", trend)
-	/* 	_, err = h.trendService.SaveTransactions(&transactions)
-	   	if err != nil {
-	   		return err
-	   	}
-	   	_, err = h.trendService.SaveTrend(&trend)
-	   	if err != nil {
-	   		return err
-	   	} */
+	// Save Trend
+	err = h.bigQueryTrendService.SaveTrend(&trend)
+	if err != nil {
+		return err
+	}
+	log.Println("Trend saved: ", trend)
 
-	// TODO add single trends for other indicators than SMA...
+	// Generate transactionIDs
+	for i := range transactions {
+		transactions[i].TransactionID = uuid.New().String()
+	}
+
+	// Save transactions
+	err = h.bigQueryTrendService.SaveTransactions(transactions)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func scoreTrend(data []IntradayData, buyScenario models.BuyScenario, sellScenario models.SellScenario) (float64, []models.Transaction, error) {
+func scoreTrend(data []IntradayData, buyScenario models.BuyScenario, sellScenario models.SellScenario, trendID string) (float64, []models.Transaction, error) {
 	transactions := []models.Transaction{}
 	inPosition := false
 	var lastBuy models.Transaction
@@ -248,6 +259,7 @@ func scoreTrend(data []IntradayData, buyScenario models.BuyScenario, sellScenari
 		if inPosition && checkSellScenario(sellScenario, lastBuy.PriceBought, price) {
 			lastBuy.DateSold = data[i].Datetime
 			lastBuy.PriceSold = price
+			lastBuy.TrendID = trendID
 			transactions[len(transactions)-1] = lastBuy
 			inPosition = false
 		}

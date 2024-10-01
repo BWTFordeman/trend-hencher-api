@@ -1,16 +1,13 @@
 package models
 
-import (
-	"cloud.google.com/go/datastore"
-)
-
 type Transaction struct {
-	TrendID     *datastore.Key `datastore:"trend_id"`
-	DateBought  string         `datastore:"date_bought"`
-	DateSold    string         `datastore:"date_sold"`
-	PriceBought float64        `datastore:"price_bought"`
-	PriceSold   float64        `datastore:"price_sold"`
-	Volume      int64          `datastore:"volume"`
+	TransactionID string  `bigquery:"transaction_id"`
+	TrendID       string  `bigquery:"trend_id"`
+	DateBought    string  `bigquery:"date_bought"`
+	DateSold      string  `bigquery:"date_sold"`
+	PriceBought   float64 `bigquery:"price_bought"`
+	PriceSold     float64 `bigquery:"price_sold"`
+	Volume        int64   `bigquery:"volume"`
 }
 
 type TransactionResponse struct {

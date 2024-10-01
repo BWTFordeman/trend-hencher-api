@@ -11,9 +11,10 @@ type TrendValues struct {
 }
 
 type Trend struct {
-	Stock                 string       `datastore:"stock"`
-	TrendScore            float64      `datastore:"trend_score"`
-	Date                  time.Time    `datastore:"date"`
+	TrendID               string       `bigquery:"trend_id"`
+	Stock                 string       `bigquery:"stock"`
+	TrendScore            float64      `bigquery:"trend_score"`
+	Date                  time.Time    `bigquery:"date"`
 	IndicatorBuyScenario  BuyScenario  `json:"indicator_buy_scenario"`
 	IndicatorSellScenario SellScenario `json:"indicator_sell_scenario"`
 }
