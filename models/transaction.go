@@ -30,18 +30,17 @@ const (
 )
 
 type BuyCondition struct {
-	IndicatorName       string                 `json:"indicator_name"`
-	IndicatorType       IndicatorType          `json:"indicator_type"`
-	IndicatorConfig     map[string]interface{} `json:"indicator_config"`
-	IndicatorPeriod     int                    `json:"indicator_period"`
-	IndicatorCheckValue string                 `json:"indicator_check_value"`
+	IndicatorName       string        `bigquery:"indicator_name"`
+	IndicatorType       IndicatorType `bigquery:"indicator_type"`
+	IndicatorPeriod     int           `bigquery:"indicator_period"`
+	IndicatorCheckValue string        `bigquery:"indicator_check_value"`
 }
 
 type BuyScenario struct {
-	Conditions []BuyCondition `json:"conditions"`
+	Conditions []BuyCondition `bigquery:"conditions"`
 }
 
 type SellScenario struct {
-	ProfitThreshold float64 `json:"profit_threshold"`
-	LossThreshold   float64 `json:"loss_threshold"`
+	ProfitThreshold float64 `bigquery:"profit_threshold"`
+	LossThreshold   float64 `bigquery:"loss_threshold"`
 }

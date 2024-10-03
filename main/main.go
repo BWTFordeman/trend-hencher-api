@@ -9,12 +9,12 @@ func main() {
 	initEnv()
 	trendHandler := initTrendHandler()
 
-	log.Println("Starting server on :8081..")
+	log.Println("Starting server on :8080..")
 	http.HandleFunc("/checkMarket", trendHandler.CheckMarket)
 	http.HandleFunc("/trend", trendHandler.GetTrend)
 	http.HandleFunc("/trends", trendHandler.GetAllTrends)
 	http.HandleFunc("/saveTrend", trendHandler.SaveTrend)
 	http.HandleFunc("/transactions", trendHandler.GetTransactions)
 
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

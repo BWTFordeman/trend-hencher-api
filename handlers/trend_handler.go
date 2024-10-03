@@ -193,7 +193,6 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 			},
 		},
 	}
-	log.Println("some error")
 	// Another possible sellScenario could be lossThreshold set to recent low and profit to 2x loss. (If the recent low is very high compared to current then maybe no trade?)
 	indicatorSellScenario := models.SellScenario{
 		ProfitThreshold: 1.07,
@@ -204,7 +203,6 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 		log.Println("scoring error", trendScore)
 		return err
 	}
-	log.Println("score gotten", trendScore)
 	trend := models.Trend{
 		TrendID:               trendID,
 		Stock:                 symbol,

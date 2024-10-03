@@ -15,8 +15,8 @@ type Trend struct {
 	Stock                 string       `bigquery:"stock"`
 	TrendScore            float64      `bigquery:"trend_score"`
 	Date                  time.Time    `bigquery:"date"`
-	IndicatorBuyScenario  BuyScenario  `json:"indicator_buy_scenario"`
-	IndicatorSellScenario SellScenario `json:"indicator_sell_scenario"`
+	IndicatorBuyScenario  BuyScenario  `bigquery:"indicator_buy_scenario"`
+	IndicatorSellScenario SellScenario `bigquery:"indicator_sell_scenario"`
 }
 
 type TrendResponse struct {

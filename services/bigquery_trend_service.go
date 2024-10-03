@@ -1,7 +1,6 @@
 package services
 
 import (
-	"log"
 	"trend-hencher-api/models"
 	"trend-hencher-api/repository"
 )
@@ -15,7 +14,6 @@ func NewBigQueryService(repo *repository.BigQueryRepository) *BigQueryTrendServi
 }
 
 func (s *BigQueryTrendService) SaveTrend(trend *models.Trend) error {
-	log.Println("service save trend")
 	return s.repo.SaveTrend(trend)
 }
 

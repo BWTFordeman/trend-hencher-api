@@ -21,8 +21,7 @@ func NewBigQueryRepository(ctx context.Context, client *bigquery.Client) *BigQue
 }
 
 func (r *BigQueryRepository) SaveTrend(trend *models.Trend) error {
-	log.Println("savetrend")
-	table := r.client.Dataset("trend_dataset").Table("Trends")
+	table := r.client.Dataset("trend_dataset").Table("Trend")
 	inserter := table.Inserter()
 
 	// Insert the Trend into BigQuery
@@ -36,7 +35,7 @@ func (r *BigQueryRepository) SaveTrend(trend *models.Trend) error {
 }
 
 func (r *BigQueryRepository) SaveTransactions(transactions []models.Transaction) error {
-	table := r.client.Dataset("trend_dataset").Table("Transactions")
+	table := r.client.Dataset("trend_dataset").Table("Transaction")
 	inserter := table.Inserter()
 
 	// Insert the transactions into BigQuery
