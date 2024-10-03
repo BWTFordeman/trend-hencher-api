@@ -32,8 +32,11 @@ type IntradayData struct {
 	Volume    int     `json:"volume"`
 }
 
-func NewTrendHandler(trendService *services.TrendService) *TrendHandler {
-	return &TrendHandler{trendService: trendService}
+func NewTrendHandler(trendService *services.TrendService, bigQueryTrendService *services.BigQueryTrendService) *TrendHandler {
+	return &TrendHandler{
+		trendService:         trendService,
+		bigQueryTrendService: bigQueryTrendService,
+	}
 }
 
 func (h *TrendHandler) GetTrend(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +148,7 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 	log.Println("Checking market...")
 	intradayData, err := fetchIntradayData(stockSymbol)
 	if err != nil {
-		http.Error(w, "Failed to retrieve or parse data", http.StatusInternalServerError)
+		http.Error(w, "Failed to retrieve or parse data", http.StatusUnauthorized)
 		return
 	}
 
@@ -190,6 +193,7 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 			},
 		},
 	}
+	log.Println("some error")
 	// Another possible sellScenario could be lossThreshold set to recent low and profit to 2x loss. (If the recent low is very high compared to current then maybe no trade?)
 	indicatorSellScenario := models.SellScenario{
 		ProfitThreshold: 1.07,
@@ -200,6 +204,7 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 		log.Println("scoring error", trendScore)
 		return err
 	}
+	log.Println("score gotten", trendScore)
 	trend := models.Trend{
 		TrendID:               trendID,
 		Stock:                 symbol,

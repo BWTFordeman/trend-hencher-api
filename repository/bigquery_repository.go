@@ -21,6 +21,7 @@ func NewBigQueryRepository(ctx context.Context, client *bigquery.Client) *BigQue
 }
 
 func (r *BigQueryRepository) SaveTrend(trend *models.Trend) error {
+	log.Println("savetrend")
 	table := r.client.Dataset("trend_dataset").Table("Trends")
 	inserter := table.Inserter()
 
