@@ -25,7 +25,7 @@ func main() {
 		log.Fatalf("Failed to create Datastore client: %v", err)
 	}
 
-	log.Println("Starting server on :8081..")
+	log.Println("Starting server on :8080..")
 	datastorerepo := repository.NewDatastoreRepository(ctx, client)
 	trendService := services.NewTrendService(datastorerepo)
 	trendHandler := handlers.NewTrendHandler(trendService)
@@ -36,5 +36,5 @@ func main() {
 	http.HandleFunc("/saveTrend", trendHandler.SaveTrend)
 	http.HandleFunc("/transactions", trendHandler.GetTransactions)
 
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
