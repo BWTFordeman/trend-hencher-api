@@ -32,6 +32,12 @@ type IntradayData struct {
 	Volume    int     `json:"volume"`
 }
 
+const (
+	openHourET   = 9  // Market opens at 9 AM ET
+	openMinuteET = 30 // Market opens at 9:30 AM ET
+	closeHourET  = 16 // Market closes at 4 PM ET
+)
+
 func NewTrendHandler(trendService *services.TrendService, bigQueryTrendService *services.BigQueryTrendService) *TrendHandler {
 	return &TrendHandler{
 		trendService:         trendService,
@@ -153,7 +159,7 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run trends:
-	trendsCreated, err := createTrends(h, w, intradayData, stockSymbol)
+	trendsCreated, err := createTrends(h, intradayData, stockSymbol)
 	if err != nil {
 		http.Error(w, "Failed creating trends", http.StatusInternalServerError)
 		return
@@ -162,8 +168,8 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, trendsCreated)
 }
 
-func createTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayData, symbol string) (string, error) {
-	err := createSingleTrends(h, w, data, symbol)
+func createTrends(h *TrendHandler, data []IntradayData, symbol string) (string, error) {
+	err := createSingleTrends(h, data, symbol)
 	// TODO add single trends for other indicators than SMA...
 
 	// createDoubleTrends()
@@ -180,7 +186,7 @@ func createTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayData, s
 	return "Created trends", nil
 }
 
-func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayData, symbol string) error {
+func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) error {
 
 	trendID := uuid.New().String()
 	indicatorBuyScenario := models.BuyScenario{
@@ -198,12 +204,12 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 		ProfitThreshold: 1.07,
 		LossThreshold:   0.96,
 	}
-	trendScore, transactions, err := scoreTrend(data, indicatorBuyScenario, indicatorSellScenario, trendID)
+	trendScore, _, err := scoreTrend(data, indicatorBuyScenario, indicatorSellScenario, trendID)
 	if err != nil {
 		log.Println("scoring error", trendScore)
 		return err
 	}
-	trend := models.Trend{
+	/*trend := models.Trend{
 		TrendID:               trendID,
 		Stock:                 symbol,
 		TrendScore:            trendScore,
@@ -212,7 +218,7 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 		IndicatorSellScenario: indicatorSellScenario,
 	}
 	// Save Trend
-	err = h.bigQueryTrendService.SaveTrend(&trend)
+	 err = h.bigQueryTrendService.SaveTrend(&trend)
 	if err != nil {
 		return err
 	}
@@ -227,7 +233,7 @@ func createSingleTrends(h *TrendHandler, w http.ResponseWriter, data []IntradayD
 	err = h.bigQueryTrendService.SaveTransactions(transactions)
 	if err != nil {
 		return err
-	}
+	} */
 
 	return nil
 }
@@ -253,7 +259,7 @@ func scoreTrend(data []IntradayData, buyScenario models.BuyScenario, sellScenari
 			lastBuy = models.Transaction{
 				DateBought:  data[i].Datetime,
 				PriceBought: price,
-				Volume:      int64(price / 1000000), // Assuming total invested per trade is 1.000.000~
+				Volume:      int64(1000000 / price), // Assuming total invested per trade is 1.000.000~
 			}
 			transactions = append(transactions, lastBuy)
 			inPosition = true
@@ -390,4 +396,21 @@ func calculateAverage(profits []float64) float64 {
 		sum += profit
 	}
 	return sum / float64(len(profits))
+}
+
+// Convert Unix timestamp and GMT offset to time.Time
+func convertToEasternTime(unixTime int64, gmtOffset int) time.Time {
+	utcTime := time.Unix(unixTime, 0)
+
+	// Apply the GMT offset (adjusting for market-provided timezone)
+	offsetDuration := time.Duration(gmtOffset) * time.Second
+	adjustedTime := utcTime.Add(offsetDuration)
+
+	// Convert to Eastern Time (ET)
+	easternLocation, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Fatalf("Failed to load Eastern timezone: %v", err)
+	}
+
+	return adjustedTime.In(easternLocation)
 }
