@@ -17,7 +17,6 @@ func fetchIntradayData(stockSymbol string) ([]IntradayData, error) {
 	environment := os.Getenv("ENVIRONMENT")
 
 	if environment == "local" {
-		fmt.Println("Fetching local test data")
 		return fetchFromLocalFile()
 	}
 
@@ -60,7 +59,7 @@ func fetchFromAPI(stockSymbol string) ([]IntradayData, error) {
 }
 
 func fetchFromLocalFile() ([]IntradayData, error) {
-	filePath := "../testdata/test-data.json"
+	filePath := "testdata/APPL_data_08_10_24.json"
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read local file: %v", err)
@@ -73,12 +72,15 @@ func fetchFromLocalFile() ([]IntradayData, error) {
 	}
 
 	// Set correct timezone for intraday data:
-	intradayData = filterIntradayData(intradayData)
+	intradayData, err = filterIntradayData(intradayData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter data %v", err)
+	}
 
 	return intradayData, nil
 }
 
-func filterIntradayData(intradayData []IntradayData) []IntradayData {
+func filterIntradayData(intradayData []IntradayData) ([]IntradayData, error) {
 	// Load the Oslo timezone
 	osloLocation, err := time.LoadLocation("Europe/Oslo")
 	if err != nil {
@@ -112,5 +114,5 @@ func filterIntradayData(intradayData []IntradayData) []IntradayData {
 		}
 	}
 
-	return filteredData
+	return filteredData, nil
 }

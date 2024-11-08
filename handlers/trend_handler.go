@@ -154,6 +154,7 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 	log.Println("Checking market...")
 	intradayData, err := fetchIntradayData(stockSymbol)
 	if err != nil {
+		log.Printf("Error fetching data; %v", err)
 		http.Error(w, "Failed to retrieve or parse data", http.StatusUnauthorized)
 		return
 	}
@@ -169,6 +170,7 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 }
 
 func createTrends(h *TrendHandler, data []IntradayData, symbol string) (string, error) {
+	defer utils.MeasureTime(time.Now(), "createTrends")
 	err := createSingleTrends(h, data, symbol)
 	// TODO add single trends for other indicators than SMA...
 
@@ -204,12 +206,12 @@ func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) err
 		ProfitThreshold: 1.07,
 		LossThreshold:   0.96,
 	}
-	trendScore, _, err := scoreTrend(data, indicatorBuyScenario, indicatorSellScenario, trendID)
+	trendScore, transactions, err := scoreTrend(data, indicatorBuyScenario, indicatorSellScenario, trendID)
 	if err != nil {
 		log.Println("scoring error", trendScore)
 		return err
 	}
-	/*trend := models.Trend{
+	trend := models.Trend{
 		TrendID:               trendID,
 		Stock:                 symbol,
 		TrendScore:            trendScore,
@@ -218,7 +220,7 @@ func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) err
 		IndicatorSellScenario: indicatorSellScenario,
 	}
 	// Save Trend
-	 err = h.bigQueryTrendService.SaveTrend(&trend)
+	err = h.bigQueryTrendService.SaveTrend(&trend)
 	if err != nil {
 		return err
 	}
@@ -233,7 +235,7 @@ func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) err
 	err = h.bigQueryTrendService.SaveTransactions(transactions)
 	if err != nil {
 		return err
-	} */
+	}
 
 	return nil
 }
