@@ -189,52 +189,46 @@ func createTrends(h *TrendHandler, data []IntradayData, symbol string) (string, 
 }
 
 func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) error {
+	// Get all predefined scenarios
+	scenarios := models.GetPredefinedSingleTrendScenarios()
 
-	trendID := uuid.New().String()
-	indicatorBuyScenario := models.BuyScenario{
-		Conditions: []models.BuyCondition{
-			{
-				IndicatorName:       "SMA",
-				IndicatorType:       models.IndicatorUnder,
-				IndicatorPeriod:     14,
-				IndicatorCheckValue: "data",
-			},
-		},
-	}
-	// Another possible sellScenario could be lossThreshold set to recent low and profit to 2x loss. (If the recent low is very high compared to current then maybe no trade?)
-	indicatorSellScenario := models.SellScenario{
-		ProfitThreshold: 1.07,
-		LossThreshold:   0.96,
-	}
-	trendScore, transactions, err := scoreTrend(data, indicatorBuyScenario, indicatorSellScenario, trendID)
-	if err != nil {
-		log.Println("scoring error", trendScore)
-		return err
-	}
-	trend := models.Trend{
-		TrendID:               trendID,
-		Stock:                 symbol,
-		TrendScore:            trendScore,
-		Date:                  time.Now(),
-		IndicatorBuyScenario:  indicatorBuyScenario,
-		IndicatorSellScenario: indicatorSellScenario,
-	}
-	// Save Trend
-	err = h.bigQueryTrendService.SaveTrend(&trend)
-	if err != nil {
-		return err
-	}
-	log.Println("Trend saved: ", trend)
+	// Run through each scenario
+	for _, scenario := range scenarios {
+		trendID := uuid.New().String()
 
-	// Generate transactionIDs
-	for i := range transactions {
-		transactions[i].TransactionID = uuid.New().String()
-	}
+		trendScore, transactions, err := scoreTrend(data, scenario.IndicatorBuyScenario, scenario.IndicatorSellScenario, trendID)
+		if err != nil {
+			log.Printf("scoring error for scenario %s: %v", scenario.Name, err)
+			continue // Skip this scenario if there's an error
+		}
 
-	// Save transactions
-	err = h.bigQueryTrendService.SaveTransactions(transactions)
-	if err != nil {
-		return err
+		trend := models.Trend{
+			TrendID:               trendID,
+			Stock:                 symbol,
+			TrendScore:            trendScore,
+			Date:                  time.Now(),
+			IndicatorBuyScenario:  scenario.IndicatorBuyScenario,
+			IndicatorSellScenario: scenario.IndicatorSellScenario,
+		}
+
+		// Save Trend
+		if err := h.bigQueryTrendService.SaveTrend(&trend); err != nil {
+			log.Printf("error saving trend for scenario %s: %v", scenario.Name, err)
+			continue
+		}
+
+		// Generate transactionIDs
+		for i := range transactions {
+			transactions[i].TransactionID = uuid.New().String()
+		}
+
+		// Save transactions
+		if err := h.bigQueryTrendService.SaveTransactions(transactions); err != nil {
+			log.Printf("error saving transactions for scenario %s: %v", scenario.Name, err)
+			continue
+		}
+
+		log.Printf("Successfully processed scenario: %s", scenario.Name)
 	}
 
 	return nil
