@@ -33,14 +33,34 @@ type BuyCondition struct {
 	IndicatorName       string        `bigquery:"indicator_name"`
 	IndicatorType       IndicatorType `bigquery:"indicator_type"`
 	IndicatorPeriod     int           `bigquery:"indicator_period"`
-	IndicatorCheckValue string        `bigquery:"indicator_check_value"`
+	IndicatorCheckValue Indicator     `bigquery:"indicator_check_value"`
 }
 
 type BuyScenario struct {
 	Conditions []BuyCondition `bigquery:"conditions"`
 }
 
-type SellScenario struct {
+type ConditionType int64
+
+const (
+	SellPercentage ConditionType = 1
+	SellIndicator  ConditionType = 2
+)
+
+type SellCondition struct {
+	ConditionType   ConditionType
 	ProfitThreshold float64 `bigquery:"profit_threshold"`
 	LossThreshold   float64 `bigquery:"loss_threshold"`
+}
+
+type SellScenario struct {
+	Conditions []SellCondition
+}
+
+// General object that can have any indicator values:
+type Indicator struct {
+	IndicatorName        string
+	IndicatorSMAPeriod   int
+	IndicatorRSIPeriod   int
+	IndicatorRSIStrength int
 }

@@ -59,7 +59,7 @@ func fetchFromAPI(stockSymbol string) ([]IntradayData, error) {
 }
 
 func fetchFromLocalFile() ([]IntradayData, error) {
-	filePath := "testdata/APPL_data_08_10_24.json"
+	filePath := "testdata/AAPL-18-06-25.json"
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read local file: %v", err)
@@ -91,7 +91,7 @@ func filterIntradayData(intradayData []IntradayData) ([]IntradayData, error) {
 
 	for _, data := range intradayData {
 		// Convert the timestamp to Eastern Time
-		easternTime := convertToEasternTime(data.Timestamp, data.GmtOffset)
+		easternTime := utils.ConvertToEasternTime(data.Timestamp, data.GmtOffset)
 
 		// Check if the time falls within the open market hours (9:30 AM - 4:00 PM ET)
 		if (easternTime.Hour() > openHourET || (easternTime.Hour() == openHourET && easternTime.Minute() >= openMinuteET)) &&

@@ -5,7 +5,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"sort"
 	"strconv"
 	"time"
 	"trend-hencher-api/models"
@@ -196,37 +195,44 @@ func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) err
 	for _, scenario := range scenarios {
 		trendID := uuid.New().String()
 
-		trendScore, transactions, err := scoreTrend(data, scenario.IndicatorBuyScenario, scenario.IndicatorSellScenario, trendID)
+		transactions, err := createTransactions(data, scenario.IndicatorBuyScenario, scenario.IndicatorSellScenario, trendID)
+
+		log.Println("Finished transactions")
+
+		trendScore := calculateTrendScore(transactions)
 		if err != nil {
 			log.Printf("scoring error for scenario %s: %v", scenario.Name, err)
 			continue // Skip this scenario if there's an error
 		}
 
-		trend := models.Trend{
-			TrendID:               trendID,
-			Stock:                 symbol,
-			TrendScore:            trendScore,
-			Date:                  time.Now(),
-			IndicatorBuyScenario:  scenario.IndicatorBuyScenario,
-			IndicatorSellScenario: scenario.IndicatorSellScenario,
-		}
+		log.Println("score for scenario: ", trendScore)
+		/*
+			trend := models.Trend{
+				TrendID:               trendID,
+				Stock:                 symbol,
+				TrendScore:            trendScore,
+				YearlyProfit:			yearlyProfit,
+				Date:                  time.Now(),
+				IndicatorBuyScenario:  scenario.IndicatorBuyScenario,
+				IndicatorSellScenario: scenario.IndicatorSellScenario,
+			}
 
-		// Save Trend
-		if err := h.bigQueryTrendService.SaveTrend(&trend); err != nil {
-			log.Printf("error saving trend for scenario %s: %v", scenario.Name, err)
-			continue
-		}
+			// Save Trend
+			if err := h.bigQueryTrendService.SaveTrend(&trend); err != nil {
+				log.Printf("error saving trend for scenario %s: %v", scenario.Name, err)
+				continue
+			}
 
-		// Generate transactionIDs
-		for i := range transactions {
-			transactions[i].TransactionID = uuid.New().String()
-		}
+			// Generate transactionIDs
+			for i := range transactions {
+				transactions[i].TransactionID = uuid.New().String()
+			}
 
-		// Save transactions
-		if err := h.bigQueryTrendService.SaveTransactions(transactions); err != nil {
-			log.Printf("error saving transactions for scenario %s: %v", scenario.Name, err)
-			continue
-		}
+			// Save transactions
+			if err := h.bigQueryTrendService.SaveTransactions(transactions); err != nil {
+				log.Printf("error saving transactions for scenario %s: %v", scenario.Name, err)
+				continue
+			} */
 
 		log.Printf("Successfully processed scenario: %s", scenario.Name)
 	}
@@ -234,39 +240,37 @@ func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) err
 	return nil
 }
 
-func scoreTrend(data []IntradayData, buyScenario models.BuyScenario, sellScenario models.SellScenario, trendID string) (float64, []models.Transaction, error) {
+func createTransactions(data []IntradayData, buyScenario models.BuyScenario, sellScenario models.SellScenario, trendID string) ([]models.Transaction, error) {
 	transactions := []models.Transaction{}
 	inPosition := false
 	var lastBuy models.Transaction
-
-	// Get indicator data:
-	var closePrices []float64
-	for _, entry := range data {
-		closePrices = append(closePrices, entry.Close)
-	}
-	SMAData := talib.Sma(closePrices, buyScenario.Conditions[0].IndicatorPeriod)
 
 	// Get transactions:
 	for i := 1; i < len(data); i++ {
 		price := data[i].Close
 
 		// Check for BuyScenario
-		if !inPosition && checkBuyScenario(buyScenario, closePrices, SMAData, i) {
-			lastBuy = models.Transaction{
-				DateBought:  data[i].Datetime,
-				PriceBought: price,
-				Volume:      int64(1000000 / price), // Assuming total invested per trade is 1.000.000~
+		if !inPosition {
+			if shouldBuy(data, buyScenario, i) {
+				lastBuy = models.Transaction{
+					DateBought:  data[i].Datetime,
+					PriceBought: price,
+					Volume:      int64(1000000 / price), // Assuming total invested per trade is 1.000.000~
+				}
 			}
 			transactions = append(transactions, lastBuy)
 			inPosition = true
 		}
 
-		if inPosition && checkSellScenario(sellScenario, lastBuy.PriceBought, price) {
-			lastBuy.DateSold = data[i].Datetime
-			lastBuy.PriceSold = price
-			lastBuy.TrendID = trendID
-			transactions[len(transactions)-1] = lastBuy
-			inPosition = false
+		// Check for SellScenario
+		if inPosition {
+			if shouldSell(sellScenario, lastBuy.PriceBought, price) {
+				lastBuy.DateSold = data[i].Datetime
+				lastBuy.PriceSold = price
+				lastBuy.TrendID = trendID
+				transactions[len(transactions)-1] = lastBuy
+				inPosition = false
+			}
 		}
 	}
 
@@ -275,41 +279,93 @@ func scoreTrend(data []IntradayData, buyScenario models.BuyScenario, sellScenari
 		transactions = transactions[:len(transactions)-1]
 	}
 
-	trendScore := calculateTrendScore(transactions)
-
-	return trendScore, transactions, nil
+	return transactions, nil
 }
 
-func checkBuyScenario(buyScenario models.BuyScenario, checkData []float64, indicatorData []float64, index int) bool {
-	for _, condition := range buyScenario.Conditions {
-		switch condition.IndicatorType {
-		case models.IndicatorCrossDown:
-			if checkData[index] >= indicatorData[index] {
-				return false
-			}
-		case models.IndicatorCrossUp:
-			if checkData[index] <= indicatorData[index] {
-				return false
-			}
-		case models.IndicatorOver:
-			if checkData[index] > indicatorData[index] {
-				return false
-			}
-		case models.IndicatorUnder:
-			if checkData[index] < indicatorData[index] {
-				return false
-			}
+// This checks current data(by index) against buyScenario conditions and return whether to buy or wait for correct conditions to buy
+func shouldBuy(data []IntradayData, buyScenario models.BuyScenario, index int) bool {
+
+	closePrices := make([]float64, len(data))
+	for i, entry := range data {
+		closePrices[i] = entry.Close
+	}
+
+	// loop through each condition and handle each separately. if any of them fails return false, if all works fine return true
+	for _, cond := range buyScenario.Conditions {
+		// In getIndicatorSource get indicator data for indicator checked in cond
+		indicatorSourceData := getIndicatorSource(closePrices, cond)
+		// In getIndicatorTarget get data/indicator data that source will be checked against
+		indicatorTargetData := getIndicatorTarget(closePrices, cond)
+		if !checkBuyCondition(indicatorSourceData, indicatorTargetData, cond.IndicatorType, index) {
+			return false
 		}
 	}
+
 	return true
 }
 
-func checkSellScenario(sellScenario models.SellScenario, buyPrice, currentPrice float64) bool {
-	if currentPrice >= buyPrice*(1+sellScenario.ProfitThreshold/100) ||
-		currentPrice <= buyPrice*(1-sellScenario.LossThreshold/100) {
-		return true
+func getIndicatorSource(closePrices []float64, condition models.BuyCondition) []float64 {
+	// TODO setup more indicators
+	switch condition.IndicatorName {
+	case "SMA":
+		return talib.Sma(closePrices, condition.IndicatorPeriod)
+	case "RSI":
+		return talib.Rsi(closePrices, condition.IndicatorPeriod)
 	}
-	return false
+
+	return closePrices
+}
+
+func getIndicatorTarget(closePrices []float64, condition models.BuyCondition) []float64 {
+	// TODO setup more indicators
+	switch condition.IndicatorCheckValue.IndicatorName {
+	case "SMA":
+		return talib.Sma(closePrices, condition.IndicatorCheckValue.IndicatorSMAPeriod)
+	case "RSI":
+		return closePrices // rsi values is in indicatorSource, won't need this value then.
+	default:
+		return closePrices // IndicatorName is "data" here
+	}
+}
+
+func checkBuyCondition(sourceData []float64, targetData []float64, indicatorType models.IndicatorType, index int) bool {
+
+	currSource := sourceData[index]
+	currTarget := targetData[index]
+
+	switch indicatorType {
+	case models.IndicatorOver:
+		return currSource > currTarget
+	case models.IndicatorUnder:
+		return currSource < currTarget
+	case models.IndicatorCrossUp:
+		prevSource := sourceData[index-1]
+		prevTarget := targetData[index-1]
+		return prevSource < prevTarget && currSource >= currTarget
+	case models.IndicatorCrossDown:
+		prevSource := sourceData[index-1]
+		prevTarget := targetData[index-1]
+		return prevSource > prevTarget && currSource <= currTarget
+	default:
+		return false
+	}
+}
+
+func shouldSell(sellScenario models.SellScenario, buyPrice, currentPrice float64) bool {
+	for _, sellCondition := range sellScenario.Conditions {
+		switch sellCondition.ConditionType {
+		case models.SellPercentage:
+			if currentPrice > buyPrice*(sellCondition.ProfitThreshold/100) || currentPrice < buyPrice*(sellCondition.LossThreshold/100) {
+				return true
+			}
+		case models.SellIndicator:
+			// TODO implement
+			return true
+			//TODO add more types
+		}
+	}
+
+	return true
 }
 
 // Fake normalizations are being done - meaning any trend can have a score above 1
@@ -326,6 +382,7 @@ func calculateTrendScore(transactions []models.Transaction) float64 {
 		profit := (transaction.PriceSold - transaction.PriceBought) * float64(transaction.Volume)
 		totalProfit += profit
 	}
+	log.Printf("totalProfit: %.2f", totalProfit)
 	normalizedProfitability := totalProfit / 1000000
 	profitabilityWeight := 0.45
 
@@ -362,8 +419,8 @@ func calculateVarianceScore(transactions []models.Transaction) float64 {
 		percentageProfits = append(percentageProfits, percentageProfit)
 	}
 
-	averageProfit := calculateAverage(percentageProfits)
-	medianProfit := calculateMedian(percentageProfits)
+	averageProfit := utils.CalculateAverage(percentageProfits)
+	medianProfit := utils.CalculateMedian(percentageProfits)
 
 	// Calculate the variance (difference between average and median percentage profit)
 	variance := math.Abs(averageProfit - medianProfit)
@@ -374,39 +431,4 @@ func calculateVarianceScore(transactions []models.Transaction) float64 {
 		varianceScore = 0 // Ensure the score doesn't go below 0
 	}
 	return varianceScore
-}
-
-func calculateMedian(profits []float64) float64 {
-	sort.Float64s(profits)
-
-	n := len(profits)
-	if n%2 == 0 {
-		return (profits[n/2-1] + profits[n/2]) / 2.0
-	}
-	return profits[n/2]
-}
-
-func calculateAverage(profits []float64) float64 {
-	sum := 0.0
-	for _, profit := range profits {
-		sum += profit
-	}
-	return sum / float64(len(profits))
-}
-
-// Convert Unix timestamp and GMT offset to time.Time
-func convertToEasternTime(unixTime int64, gmtOffset int) time.Time {
-	utcTime := time.Unix(unixTime, 0)
-
-	// Apply the GMT offset (adjusting for market-provided timezone)
-	offsetDuration := time.Duration(gmtOffset) * time.Second
-	adjustedTime := utcTime.Add(offsetDuration)
-
-	// Convert to Eastern Time (ET)
-	easternLocation, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		log.Fatalf("Failed to load Eastern timezone: %v", err)
-	}
-
-	return adjustedTime.In(easternLocation)
 }
