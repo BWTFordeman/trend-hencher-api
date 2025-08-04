@@ -5,9 +5,9 @@ import (
 )
 
 type TrendValues struct {
-	IndicatorName      string        `json:"indicator_name"`
-	IndicatorType      IndicatorType `json:"indicator_type"`
-	IndicatorSMAPeriod int           `json:"indicator_sma"`
+	IndicatorName   string        `json:"indicator_name"`
+	IndicatorType   IndicatorType `json:"indicator_type"`
+	IndicatorPeriod int           `json:"indicator_period"`
 }
 
 type Trend struct {

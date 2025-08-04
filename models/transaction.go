@@ -59,8 +59,6 @@ type SellScenario struct {
 
 // General object that can have any indicator values:
 type Indicator struct {
-	IndicatorName        string
-	IndicatorSMAPeriod   int
-	IndicatorRSIPeriod   int
-	IndicatorRSIStrength int
+	IndicatorName   string
+	IndicatorPeriod int
 }

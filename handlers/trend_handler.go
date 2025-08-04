@@ -12,23 +12,11 @@ import (
 	"trend-hencher-api/utils"
 
 	"github.com/google/uuid"
-	"github.com/markcheno/go-talib"
 )
 
 type TrendHandler struct {
 	trendService         *services.TrendService
 	bigQueryTrendService *services.BigQueryTrendService
-}
-
-type IntradayData struct {
-	Timestamp int64   `json:"timestamp"`
-	GmtOffset int     `json:"gmtoffset"`
-	Datetime  string  `json:"datetime"`
-	Open      float64 `json:"open"`
-	High      float64 `json:"high"`
-	Low       float64 `json:"low"`
-	Close     float64 `json:"close"`
-	Volume    int     `json:"volume"`
 }
 
 const (
@@ -168,7 +156,7 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, trendsCreated)
 }
 
-func createTrends(h *TrendHandler, data []IntradayData, symbol string) (string, error) {
+func createTrends(h *TrendHandler, data []models.IntradayData, symbol string) (string, error) {
 	defer utils.MeasureTime(time.Now(), "createTrends")
 	err := createSingleTrends(h, data, symbol)
 	// TODO add single trends for other indicators than SMA...
@@ -187,17 +175,15 @@ func createTrends(h *TrendHandler, data []IntradayData, symbol string) (string, 
 	return "Created trends", nil
 }
 
-func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) error {
+func createSingleTrends(h *TrendHandler, data []models.IntradayData, symbol string) error {
 	// Get all predefined scenarios
-	scenarios := models.GetPredefinedSingleTrendScenarios()
+	scenarios := models.GetPredefinedScenarios()
 
 	// Run through each scenario
 	for _, scenario := range scenarios {
 		trendID := uuid.New().String()
 
 		transactions, err := createTransactions(data, scenario.IndicatorBuyScenario, scenario.IndicatorSellScenario, trendID)
-
-		log.Println("Finished transactions")
 
 		trendScore := calculateTrendScore(transactions)
 		if err != nil {
@@ -240,10 +226,14 @@ func createSingleTrends(h *TrendHandler, data []IntradayData, symbol string) err
 	return nil
 }
 
-func createTransactions(data []IntradayData, buyScenario models.BuyScenario, sellScenario models.SellScenario, trendID string) ([]models.Transaction, error) {
+func createTransactions(data []models.IntradayData, buyScenario models.BuyScenario, sellScenario models.SellScenario, trendID string) ([]models.Transaction, error) {
 	transactions := []models.Transaction{}
 	inPosition := false
 	var lastBuy models.Transaction
+
+	indicatorCache := models.GetPredefinedIndicators(buyScenario, data)
+	// I only have data value in sellscenario now so won't need to worry about indicators there atm.
+	// TODO add sellScenario to GetPredefinedIndicators and use inidcatorCache in shouldSell (only required after adding indicators in shouldSell formula)
 
 	// Get transactions:
 	for i := 1; i < len(data); i++ {
@@ -251,7 +241,7 @@ func createTransactions(data []IntradayData, buyScenario models.BuyScenario, sel
 
 		// Check for BuyScenario
 		if !inPosition {
-			if shouldBuy(data, buyScenario, i) {
+			if shouldBuy(data, buyScenario, i, indicatorCache) {
 				lastBuy = models.Transaction{
 					DateBought:  data[i].Datetime,
 					PriceBought: price,
@@ -283,49 +273,15 @@ func createTransactions(data []IntradayData, buyScenario models.BuyScenario, sel
 }
 
 // This checks current data(by index) against buyScenario conditions and return whether to buy or wait for correct conditions to buy
-func shouldBuy(data []IntradayData, buyScenario models.BuyScenario, index int) bool {
-
-	closePrices := make([]float64, len(data))
-	for i, entry := range data {
-		closePrices[i] = entry.Close
-	}
-
-	// loop through each condition and handle each separately. if any of them fails return false, if all works fine return true
+func shouldBuy(data []models.IntradayData, buyScenario models.BuyScenario, index int, indicatorCache map[models.IndicatorKey][]float64) bool {
 	for _, cond := range buyScenario.Conditions {
-		// In getIndicatorSource get indicator data for indicator checked in cond
-		indicatorSourceData := getIndicatorSource(closePrices, cond)
-		// In getIndicatorTarget get data/indicator data that source will be checked against
-		indicatorTargetData := getIndicatorTarget(closePrices, cond)
+		indicatorSourceData := indicatorCache[models.IndicatorKey{Name: cond.IndicatorName, Period: cond.IndicatorPeriod}]
+		indicatorTargetData := indicatorCache[models.IndicatorKey{Name: cond.IndicatorCheckValue.IndicatorName, Period: cond.IndicatorCheckValue.IndicatorPeriod}]
 		if !checkBuyCondition(indicatorSourceData, indicatorTargetData, cond.IndicatorType, index) {
 			return false
 		}
 	}
-
 	return true
-}
-
-func getIndicatorSource(closePrices []float64, condition models.BuyCondition) []float64 {
-	// TODO setup more indicators
-	switch condition.IndicatorName {
-	case "SMA":
-		return talib.Sma(closePrices, condition.IndicatorPeriod)
-	case "RSI":
-		return talib.Rsi(closePrices, condition.IndicatorPeriod)
-	}
-
-	return closePrices
-}
-
-func getIndicatorTarget(closePrices []float64, condition models.BuyCondition) []float64 {
-	// TODO setup more indicators
-	switch condition.IndicatorCheckValue.IndicatorName {
-	case "SMA":
-		return talib.Sma(closePrices, condition.IndicatorCheckValue.IndicatorSMAPeriod)
-	case "RSI":
-		return closePrices // rsi values is in indicatorSource, won't need this value then.
-	default:
-		return closePrices // IndicatorName is "data" here
-	}
 }
 
 func checkBuyCondition(sourceData []float64, targetData []float64, indicatorType models.IndicatorType, index int) bool {

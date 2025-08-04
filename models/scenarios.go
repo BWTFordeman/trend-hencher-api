@@ -1,5 +1,13 @@
 package models
 
+import (
+	"encoding/json"
+	"log"
+	"os"
+
+	"github.com/markcheno/go-talib"
+)
+
 // ScenarioConfig represents a complete trading scenario configuration
 type ScenarioConfig struct {
 	Name                  string
@@ -7,107 +15,85 @@ type ScenarioConfig struct {
 	IndicatorSellScenario SellScenario
 }
 
+type IntradayData struct {
+	Timestamp int64   `json:"timestamp"`
+	GmtOffset int     `json:"gmtoffset"`
+	Datetime  string  `json:"datetime"`
+	Open      float64 `json:"open"`
+	High      float64 `json:"high"`
+	Low       float64 `json:"low"`
+	Close     float64 `json:"close"`
+	Volume    int     `json:"volume"`
+}
+
+type IndicatorKey struct {
+	Name   string
+	Period int
+}
+
 // GetPredefinedScenarios returns a list of all predefined trading scenarios
-func GetPredefinedSingleTrendScenarios() []ScenarioConfig {
-	return []ScenarioConfig{
-		{
-			Name: "SMA_14_Under",
-			IndicatorBuyScenario: BuyScenario{
-				Conditions: []BuyCondition{
-					{
-						IndicatorName:   "SMA",
-						IndicatorType:   IndicatorUnder,
-						IndicatorPeriod: 14,
-						IndicatorCheckValue: Indicator{
-							IndicatorName: "data", // Buy when SMA is under data value
-						},
-					},
-				},
-			},
-			IndicatorSellScenario: SellScenario{
-				Conditions: []SellCondition{
-					{
-						ConditionType:   SellPercentage,
-						ProfitThreshold: 1.07,
-						LossThreshold:   0.96,
-					},
-				},
-			},
-		},
-		{
-			Name: "SMA_20_Under",
-			IndicatorBuyScenario: BuyScenario{
-				Conditions: []BuyCondition{
-					{
-						IndicatorName:   "SMA",
-						IndicatorType:   IndicatorUnder,
-						IndicatorPeriod: 20,
-						IndicatorCheckValue: Indicator{
-							IndicatorName: "data",
-						},
-					},
-				},
-			},
-			IndicatorSellScenario: SellScenario{
-				Conditions: []SellCondition{
-					{
-						ConditionType:   SellPercentage,
-						ProfitThreshold: 1.05,
-						LossThreshold:   0.97,
-					},
-				},
-			},
-		},
-		{
-			Name: "RSI14_Under30",
-			IndicatorBuyScenario: BuyScenario{
-				Conditions: []BuyCondition{
-					{
-						IndicatorName:   "RSI",
-						IndicatorType:   IndicatorUnder,
-						IndicatorPeriod: 14,
-						IndicatorCheckValue: Indicator{
-							IndicatorName:        "RSI",
-							IndicatorRSIStrength: 30, // Buy when RSI < 30 (oversold)
-						},
-					},
-				},
-			},
-			IndicatorSellScenario: SellScenario{
-				Conditions: []SellCondition{
-					{
-						ConditionType:   SellPercentage,
-						ProfitThreshold: 1.06,
-						LossThreshold:   0.97,
-					},
-				},
-			},
-		},
-		{
-			Name: "RSI14_CrossOver50",
-			IndicatorBuyScenario: BuyScenario{
-				Conditions: []BuyCondition{
-					{
-						IndicatorName:   "RSI",
-						IndicatorType:   IndicatorCrossUp,
-						IndicatorPeriod: 14,
-						IndicatorCheckValue: Indicator{
-							IndicatorName:        "RSI",
-							IndicatorRSIStrength: 50, // Buy when RSI crosses above 50
-						},
-					},
-				},
-			},
-			IndicatorSellScenario: SellScenario{
-				Conditions: []SellCondition{
-					{
-						ConditionType:   SellPercentage,
-						ProfitThreshold: 1.08,
-						LossThreshold:   0.95,
-					},
-				},
-			},
-		},
-		// Add more predefined scenarios here
+func GetPredefinedScenarios() []ScenarioConfig {
+
+	scenarios, err := LoadScenarioConfigs("scenarios.json")
+	if err != nil {
+		log.Fatal("Failed to load scenarios:", err)
 	}
+	return scenarios
+}
+
+func LoadScenarioConfigs(filepath string) ([]ScenarioConfig, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var scenarios []ScenarioConfig
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&scenarios); err != nil {
+		return nil, err
+	}
+
+	return scenarios, nil
+}
+
+func GetPredefinedIndicators(buyScenario BuyScenario, data []IntradayData) map[IndicatorKey][]float64 {
+	closePrices := make([]float64, len(data))
+	for i, entry := range data {
+		closePrices[i] = entry.Close
+	}
+
+	cache := make(map[IndicatorKey][]float64)
+
+	for _, cond := range buyScenario.Conditions {
+		// Source
+		key := IndicatorKey{cond.IndicatorName, cond.IndicatorPeriod}
+		if _, exists := cache[key]; !exists {
+			switch cond.IndicatorName {
+			// TODO setup more indicators
+			case "SMA":
+				cache[key] = talib.Sma(closePrices, cond.IndicatorPeriod)
+			case "RSI":
+				cache[key] = talib.Rsi(closePrices, cond.IndicatorPeriod)
+			case "Data":
+				cache[key] = closePrices
+			}
+		}
+
+		// Target (CheckValue)
+		cv := cond.IndicatorCheckValue
+		checkKey := IndicatorKey{cv.IndicatorName, cv.IndicatorPeriod}
+		if _, exists := cache[checkKey]; !exists {
+			switch cv.IndicatorName {
+			case "SMA":
+				cache[checkKey] = talib.Sma(closePrices, cv.IndicatorPeriod)
+			case "RSI":
+				cache[checkKey] = talib.Rsi(closePrices, cv.IndicatorPeriod)
+			case "Data":
+				cache[checkKey] = closePrices
+			}
+		}
+	}
+
+	return cache
 }

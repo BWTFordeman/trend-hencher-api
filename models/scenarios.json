@@ -1,0 +1,125 @@
+[
+  {
+    "name": "SMA_14_Under",
+    "indicatorBuyScenario": {
+      "conditions": [
+        {
+          "indicatorName": "SMA",
+          "indicatorType": 2,
+          "indicatorPeriod": 14,
+          "indicatorCheckValue": {
+            "indicatorName": "Data"
+          }
+        }
+      ]
+    },
+    "indicatorSellScenario": {
+      "conditions": [
+        {
+          "conditionType": 1,
+          "profitThreshold": 1.07,
+          "lossThreshold": 0.96
+        }
+      ]
+    }
+  },
+  {
+    "name": "SMA_20_Under",
+    "indicatorBuyScenario": {
+      "conditions": [
+        {
+          "indicatorName": "SMA",
+          "indicatorType": 2,
+          "indicatorPeriod": 20,
+          "indicatorCheckValue": {
+            "indicatorName": "Data"
+          }
+        }
+      ]
+    },
+    "indicatorSellScenario": {
+      "conditions": [
+        {
+          "conditionType": 1,
+          "profitThreshold": 1.05,
+          "lossThreshold": 0.97
+        }
+      ]
+    }
+  },
+    {
+    "name": "SMA_40_Under",
+    "indicatorBuyScenario": {
+      "conditions": [
+        {
+          "indicatorName": "SMA",
+          "indicatorType": 2,
+          "indicatorPeriod": 40,
+          "indicatorCheckValue": {
+            "indicatorName": "SMA",
+            "indicatorPeriod": 20
+          }
+        }
+      ]
+    },
+    "indicatorSellScenario": {
+      "conditions": [
+        {
+          "conditionType": 1,
+          "profitThreshold": 1.05,
+          "lossThreshold": 0.97
+        }
+      ]
+    }
+  },
+  {
+    "name": "RSI14_Under30",
+    "indicatorBuyScenario": {
+      "conditions": [
+        {
+          "indicatorName": "RSI",
+          "indicatorType": 2,
+          "indicatorPeriod": 14,
+          "indicatorCheckValue": {
+            "indicatorName": "RSI",
+            "indicatorPeriod": 30
+          }
+        }
+      ]
+    },
+    "indicatorSellScenario": {
+      "conditions": [
+        {
+          "conditionType": 1,
+          "profitThreshold": 1.06,
+          "lossThreshold": 0.97
+        }
+      ]
+    }
+  },
+  {
+    "name": "RSI14_CrossOver50",
+    "indicatorBuyScenario": {
+      "conditions": [
+        {
+          "indicatorName": "RSI",
+          "indicatorType": 3,
+          "indicatorPeriod": 14,
+          "indicatorCheckValue": {
+            "indicatorName": "RSI",
+            "indicatorPeriod": 50
+          }
+        }
+      ]
+    },
+    "indicatorSellScenario": {
+      "conditions": [
+        {
+          "conditionType": 1,
+          "profitThreshold": 1.08,
+          "lossThreshold": 0.95
+        }
+      ]
+    }
+  }
+]
