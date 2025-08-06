@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"trend-hencher-api/models"
 	"trend-hencher-api/utils"
 )
 
 // Fetch intraday data for a symbol chosen, either from API or testdata retrieved locally.
-func fetchIntradayData(stockSymbol string) ([]IntradayData, error) {
+func fetchIntradayData(stockSymbol string) ([]models.IntradayData, error) {
 	defer utils.MeasureTime(time.Now(), "fetchIntradayData")
 
 	environment := os.Getenv("ENVIRONMENT")
@@ -23,7 +24,7 @@ func fetchIntradayData(stockSymbol string) ([]IntradayData, error) {
 	return fetchFromAPI(stockSymbol)
 }
 
-func fetchFromAPI(stockSymbol string) ([]IntradayData, error) {
+func fetchFromAPI(stockSymbol string) ([]models.IntradayData, error) {
 	apiToken := os.Getenv("EODHD_API_TOKEN")
 	if apiToken == "" {
 		return nil, fmt.Errorf("API token is not set")
@@ -49,7 +50,7 @@ func fetchFromAPI(stockSymbol string) ([]IntradayData, error) {
 		return nil, fmt.Errorf("failed to fetch data, status code: %d", resp.StatusCode)
 	}
 
-	var intradayData []IntradayData
+	var intradayData []models.IntradayData
 	err = json.NewDecoder(resp.Body).Decode(&intradayData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %v", err)
@@ -58,14 +59,14 @@ func fetchFromAPI(stockSymbol string) ([]IntradayData, error) {
 	return intradayData, nil
 }
 
-func fetchFromLocalFile() ([]IntradayData, error) {
+func fetchFromLocalFile() ([]models.IntradayData, error) {
 	filePath := "testdata/AAPL-18-06-25.json"
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read local file: %v", err)
 	}
 
-	var intradayData []IntradayData
+	var intradayData []models.IntradayData
 	err = json.Unmarshal(data, &intradayData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse local JSON file: %v", err)
@@ -80,14 +81,14 @@ func fetchFromLocalFile() ([]IntradayData, error) {
 	return intradayData, nil
 }
 
-func filterIntradayData(intradayData []IntradayData) ([]IntradayData, error) {
+func filterIntradayData(intradayData []models.IntradayData) ([]models.IntradayData, error) {
 	// Load the Oslo timezone
 	osloLocation, err := time.LoadLocation("Europe/Oslo")
 	if err != nil {
 		log.Fatalf("Failed to load Oslo timezone: %v", err)
 	}
 
-	filteredData := []IntradayData{}
+	filteredData := []models.IntradayData{}
 
 	for _, data := range intradayData {
 		// Convert the timestamp to Eastern Time
@@ -101,7 +102,7 @@ func filterIntradayData(intradayData []IntradayData) ([]IntradayData, error) {
 			osloTime := easternTime.In(osloLocation)
 
 			// Add the data to the filtered list, but adjust the timestamp and datetime for Oslo time
-			filteredData = append(filteredData, IntradayData{
+			filteredData = append(filteredData, models.IntradayData{
 				Timestamp: osloTime.Unix(), // Convert back to Unix timestamp if needed
 				GmtOffset: 3600,            // Set Oslo GMT offset manually (+1 hour standard, +2 hours DST)
 				Datetime:  osloTime.Format("2006-01-02 15:04:05"),

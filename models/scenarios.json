@@ -121,5 +121,35 @@
         }
       ]
     }
+  },
+  {
+    "name": "WILLR_20",
+    "indicatorBuyScenario": {
+      "conditions": [
+        {
+          "indicatorName": "WILLR",
+          "indicatorType": 2,
+          "indicatorPeriod": 14,
+          "indicatorCheckValue": {
+            "indicatorName": "WILLR",
+            "indicatorStrength": -80
+          }
+        }
+      ]
+    },
+    "indicatorSellScenario": {
+      "conditions": [
+        {
+          "conditionType": 2,
+          "indicatorName": "WILLR",
+          "indicatorType": 1,
+          "indicatorPeriod": 14,
+          "indicatorCheckValue": {
+            "indicatorName": "WILLR",
+            "indicatorStrength": -20
+          }
+        }
+      ]
+    }
   }
 ]

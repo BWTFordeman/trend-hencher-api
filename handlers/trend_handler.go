@@ -147,35 +147,16 @@ func (h *TrendHandler) CheckMarket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run trends:
-	trendsCreated, err := createTrends(h, intradayData, stockSymbol)
+	err = createTrends(h, intradayData, stockSymbol)
 	if err != nil {
 		http.Error(w, "Failed creating trends", http.StatusInternalServerError)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusCreated, trendsCreated)
+	utils.WriteJSON(w, http.StatusCreated, "Created trends")
 }
 
-func createTrends(h *TrendHandler, data []models.IntradayData, symbol string) (string, error) {
-	defer utils.MeasureTime(time.Now(), "createTrends")
-	err := createSingleTrends(h, data, symbol)
-	// TODO add single trends for other indicators than SMA...
-
-	// createDoubleTrends()
-	// createCrossOverDoubleTrends()
-	// createTripleTrends()
-	// createComplexTrends()
-
-	// TODO get more indicators
-
-	if err != nil {
-		return "Failed to create trends", err
-	}
-
-	return "Created trends", nil
-}
-
-func createSingleTrends(h *TrendHandler, data []models.IntradayData, symbol string) error {
+func createTrends(h *TrendHandler, data []models.IntradayData, symbol string) error {
 	// Get all predefined scenarios
 	scenarios := models.GetPredefinedScenarios()
 
@@ -231,9 +212,7 @@ func createTransactions(data []models.IntradayData, buyScenario models.BuyScenar
 	inPosition := false
 	var lastBuy models.Transaction
 
-	indicatorCache := models.GetPredefinedIndicators(buyScenario, data)
-	// I only have data value in sellscenario now so won't need to worry about indicators there atm.
-	// TODO add sellScenario to GetPredefinedIndicators and use inidcatorCache in shouldSell (only required after adding indicators in shouldSell formula)
+	indicatorCache := models.GetPredefinedIndicators(buyScenario, sellScenario, data)
 
 	// Get transactions:
 	for i := 1; i < len(data); i++ {
@@ -241,7 +220,7 @@ func createTransactions(data []models.IntradayData, buyScenario models.BuyScenar
 
 		// Check for BuyScenario
 		if !inPosition {
-			if shouldBuy(data, buyScenario, i, indicatorCache) {
+			if shouldBuy(buyScenario, i, indicatorCache) {
 				lastBuy = models.Transaction{
 					DateBought:  data[i].Datetime,
 					PriceBought: price,
@@ -254,7 +233,7 @@ func createTransactions(data []models.IntradayData, buyScenario models.BuyScenar
 
 		// Check for SellScenario
 		if inPosition {
-			if shouldSell(sellScenario, lastBuy.PriceBought, price) {
+			if shouldSell(sellScenario, lastBuy.PriceBought, price, i, indicatorCache) {
 				lastBuy.DateSold = data[i].Datetime
 				lastBuy.PriceSold = price
 				lastBuy.TrendID = trendID
@@ -273,55 +252,91 @@ func createTransactions(data []models.IntradayData, buyScenario models.BuyScenar
 }
 
 // This checks current data(by index) against buyScenario conditions and return whether to buy or wait for correct conditions to buy
-func shouldBuy(data []models.IntradayData, buyScenario models.BuyScenario, index int, indicatorCache map[models.IndicatorKey][]float64) bool {
+func shouldBuy(buyScenario models.BuyScenario, index int, indicatorCache map[models.IndicatorKey][]float64) bool {
 	for _, cond := range buyScenario.Conditions {
+
 		indicatorSourceData := indicatorCache[models.IndicatorKey{Name: cond.IndicatorName, Period: cond.IndicatorPeriod}]
-		indicatorTargetData := indicatorCache[models.IndicatorKey{Name: cond.IndicatorCheckValue.IndicatorName, Period: cond.IndicatorCheckValue.IndicatorPeriod}]
-		if !checkBuyCondition(indicatorSourceData, indicatorTargetData, cond.IndicatorType, index) {
+
+		// if source is checking against specific value we don't need cache(Used by RSI/WILLR etc.)
+		var indicatorTargetData []float64
+		if cond.IndicatorCheckValue.IndicatorName == "Data" || cond.IndicatorCheckValue.IndicatorPeriod > 0 {
+			indicatorTargetData = indicatorCache[models.IndicatorKey{
+				Name:   cond.IndicatorCheckValue.IndicatorName,
+				Period: cond.IndicatorCheckValue.IndicatorPeriod,
+			}]
+		}
+
+		if !checkCondition(indicatorSourceData, indicatorTargetData, cond, index) {
 			return false
 		}
 	}
 	return true
 }
 
-func checkBuyCondition(sourceData []float64, targetData []float64, indicatorType models.IndicatorType, index int) bool {
+func shouldSell(sellScenario models.SellScenario, buyPrice, currentPrice float64, index int, indicatorCache map[models.IndicatorKey][]float64) bool {
+	for _, sellCondition := range sellScenario.Conditions {
+		switch sellCondition.ConditionType {
+		case models.SellPercentage:
+			if !(currentPrice > buyPrice*(sellCondition.ProfitThreshold/100) || currentPrice < buyPrice*(sellCondition.LossThreshold/100)) {
+				return false
+			}
+		case models.SellIndicator:
+			indicatorSourceData := indicatorCache[models.IndicatorKey{Name: sellCondition.IndicatorName, Period: sellCondition.IndicatorPeriod}]
 
+			var indicatorTargetData []float64
+			if sellCondition.IndicatorCheckValue.IndicatorName == "Data" || sellCondition.IndicatorCheckValue.IndicatorPeriod > 0 {
+				indicatorTargetData = indicatorCache[models.IndicatorKey{
+					Name:   sellCondition.IndicatorCheckValue.IndicatorName,
+					Period: sellCondition.IndicatorCheckValue.IndicatorPeriod,
+				}]
+			}
+
+			if !checkCondition(indicatorSourceData, indicatorTargetData, sellCondition, index) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func checkCondition(sourceData []float64, targetData []float64, condition models.IndicatorCondition, index int) bool {
 	currSource := sourceData[index]
-	currTarget := targetData[index]
 
-	switch indicatorType {
+	var currTarget float64
+	if len(targetData) > 0 {
+		currTarget = targetData[index]
+	} else {
+		currTarget = condition.GetCheckValue().IndicatorStrength
+	}
+
+	switch condition.GetIndicatorType() {
 	case models.IndicatorOver:
 		return currSource > currTarget
 	case models.IndicatorUnder:
 		return currSource < currTarget
 	case models.IndicatorCrossUp:
 		prevSource := sourceData[index-1]
-		prevTarget := targetData[index-1]
+		var prevTarget float64
+		if len(targetData) > 0 {
+			prevTarget = targetData[index-1]
+		} else {
+			prevTarget = currTarget
+		}
 		return prevSource < prevTarget && currSource >= currTarget
+
 	case models.IndicatorCrossDown:
 		prevSource := sourceData[index-1]
-		prevTarget := targetData[index-1]
+		var prevTarget float64
+		if len(targetData) > 0 {
+			prevTarget = targetData[index-1]
+		} else {
+			prevTarget = currTarget
+		}
 		return prevSource > prevTarget && currSource <= currTarget
 	default:
 		return false
 	}
-}
-
-func shouldSell(sellScenario models.SellScenario, buyPrice, currentPrice float64) bool {
-	for _, sellCondition := range sellScenario.Conditions {
-		switch sellCondition.ConditionType {
-		case models.SellPercentage:
-			if currentPrice > buyPrice*(sellCondition.ProfitThreshold/100) || currentPrice < buyPrice*(sellCondition.LossThreshold/100) {
-				return true
-			}
-		case models.SellIndicator:
-			// TODO implement
-			return true
-			//TODO add more types
-		}
-	}
-
-	return true
 }
 
 // Fake normalizations are being done - meaning any trend can have a score above 1
